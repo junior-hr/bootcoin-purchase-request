@@ -1,6 +1,7 @@
 package com.nttdata.bootcamp.msbootcoinpurchaserequest.infrastructure;
 
 import com.nttdata.bootcamp.msbootcoinpurchaserequest.config.WebClientConfig;
+import com.nttdata.bootcamp.msbootcoinpurchaserequest.model.BankAccount;
 import com.nttdata.bootcamp.msbootcoinpurchaserequest.util.Constants;
 
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
@@ -22,21 +23,37 @@ public class BankAccountRepository {
     @Autowired
     ReactiveCircuitBreakerFactory reactiveCircuitBreakerFactory;
 
-    @CircuitBreaker(name = Constants.BANKACCOUNT_CB, fallbackMethod = "getDefaultBankAccountByDocumentNumber")
-    public Mono<Integer> findByDocumentNumber(String documentNumber) {
-        log.info("Inicio----findBankAccountByDocumentNumber-------documentNumber: " + documentNumber);
+    @CircuitBreaker(name = Constants.BANKACCOUNT_CB, fallbackMethod = "getDefaultByDocumentNumber")
+    public Mono<BankAccount> findByDocumentNumber(String documentNumber) {
+        log.info("Inicio----findByDocumentNumber-------documentNumber: " + documentNumber);
         WebClientConfig webconfig = new WebClientConfig();
         return webconfig.setUriData("http://" + propertyHostMsBankAccount + ":8085")
                 .flatMap(d -> webconfig.getWebclient().get().uri("/api/bankaccounts/documentNumber/" + documentNumber).retrieve()
-                        .onStatus(HttpStatus::is4xxClientError, clientResponse -> Mono.error(new Exception("Error 400")))
-                        .onStatus(HttpStatus::is5xxServerError, clientResponse -> Mono.error(new Exception("Error 500")))
-                        .bodyToMono(Integer.class)
-                        // .transform(it -> reactiveCircuitBreakerFactory.create("parameter-service").run(it, throwable -> Mono.just(new BankAccount())) )
+                                .onStatus(HttpStatus::is4xxClientError, clientResponse -> Mono.error(new Exception("Error 400")))
+                                .onStatus(HttpStatus::is5xxServerError, clientResponse -> Mono.error(new Exception("Error 500")))
+                                .bodyToMono(BankAccount.class)
                 );
     }
 
-    public Mono<Integer> getDefaultBankAccountByDocumentNumber(String documentNumber, Exception e) {
-        log.info("Inicio----getDefaultBankAccountByDocumentNumber-------documentNumber: " + documentNumber);
+    @CircuitBreaker(name = Constants.BANKACCOUNT_CB, fallbackMethod = "getDefaultCantByDocumentNumber")
+    public Mono<Integer> findCantByDocumentNumber(String documentNumber) {
+        log.info("Inicio----findBankAccountByDocumentNumber-------documentNumber: " + documentNumber);
+        WebClientConfig webconfig = new WebClientConfig();
+        return webconfig.setUriData("http://" + propertyHostMsBankAccount + ":8085")
+                .flatMap(d -> webconfig.getWebclient().get().uri("/api/bankaccounts/cant/documentNumber/" + documentNumber).retrieve()
+                        .onStatus(HttpStatus::is4xxClientError, clientResponse -> Mono.error(new Exception("Error 400")))
+                        .onStatus(HttpStatus::is5xxServerError, clientResponse -> Mono.error(new Exception("Error 500")))
+                        .bodyToMono(Integer.class)
+                );
+    }
+
+    public Mono<Integer> getDefaultByDocumentNumber(String documentNumber, Exception e) {
+        log.info("Inicio----getDefaultByDocumentNumber-------documentNumber: " + documentNumber);
+        return Mono.empty();
+    }
+
+    public Mono<Integer> getDefaultCantByDocumentNumber(String documentNumber, Exception e) {
+        log.info("Inicio----getDefaultCantByDocumentNumber-------documentNumber: " + documentNumber);
         return Mono.empty();
     }
 }

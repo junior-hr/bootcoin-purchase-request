@@ -38,6 +38,13 @@ eureka:
 resilience4j:
   circuitbreaker:
     instances:
+      bankaccountCB:
+        failureRateThreshold: 50
+        minimumNumberOfCalls: 4
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 8
+        waitDurationInOpenState: 2s
+        permittedNumberOfCallsInHalfOpenState: 3
       bootcoinCB:
         failureRateThreshold: 50
         minimumNumberOfCalls: 4
@@ -45,6 +52,27 @@ resilience4j:
         slidingWindowSize: 8
         waitDurationInOpenState: 2s
         permittedNumberOfCallsInHalfOpenState: 3
-        
+      clientCB:
+        failureRateThreshold: 50
+        minimumNumberOfCalls: 4
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 8
+        waitDurationInOpenState: 2s
+        permittedNumberOfCallsInHalfOpenState: 3
+      mobilewalletCB:
+        failureRateThreshold: 50
+        minimumNumberOfCalls: 4
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 8
+        waitDurationInOpenState: 2s
+        permittedNumberOfCallsInHalfOpenState: 3
+      exchangerateCB:
+        failureRateThreshold: 50
+        minimumNumberOfCalls: 4
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 8
+        waitDurationInOpenState: 2s
+        permittedNumberOfCallsInHalfOpenState: 3
+
 message:
   demo: leido desde local

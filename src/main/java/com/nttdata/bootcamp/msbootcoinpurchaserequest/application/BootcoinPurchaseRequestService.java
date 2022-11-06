@@ -16,5 +16,6 @@ public interface BootcoinPurchaseRequestService {
     public Mono<BootcoinPurchaseRequest> update(BootcoinPurchaseRequestDto bootcoinPurchaseRequestDto, String idBootcoinPurchaseRequest);
     public Mono<Void> delete(String idBootcoinPurchaseRequest);
     public Mono<BootcoinPurchaseRequest> findByDocumentNumber(String documentNumber);
+    public Mono<BootcoinPurchaseRequest> acceptSale(String idBootcoinPurchaseRequest);
 
 }

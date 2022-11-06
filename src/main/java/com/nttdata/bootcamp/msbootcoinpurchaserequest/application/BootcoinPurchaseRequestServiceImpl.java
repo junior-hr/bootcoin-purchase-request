@@ -2,11 +2,10 @@ package com.nttdata.bootcamp.msbootcoinpurchaserequest.application;
 
 import com.nttdata.bootcamp.msbootcoinpurchaserequest.dto.BootcoinPurchaseRequestDto;
 import com.nttdata.bootcamp.msbootcoinpurchaserequest.exception.ResourceNotFoundException;
-import com.nttdata.bootcamp.msbootcoinpurchaserequest.infrastructure.BankAccountRepository;
-import com.nttdata.bootcamp.msbootcoinpurchaserequest.infrastructure.BootcoinPurchaseRequestRepository;
-import com.nttdata.bootcamp.msbootcoinpurchaserequest.infrastructure.ClientRepository;
-import com.nttdata.bootcamp.msbootcoinpurchaserequest.infrastructure.MobileWalletRepository;
+import com.nttdata.bootcamp.msbootcoinpurchaserequest.infrastructure.*;
+import com.nttdata.bootcamp.msbootcoinpurchaserequest.model.Bootcoin;
 import com.nttdata.bootcamp.msbootcoinpurchaserequest.model.BootcoinPurchaseRequest;
+import com.nttdata.bootcamp.msbootcoinpurchaserequest.model.BootcoinsForSale;
 import com.nttdata.bootcamp.msbootcoinpurchaserequest.model.Client;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,11 +20,18 @@ public class BootcoinPurchaseRequestServiceImpl implements BootcoinPurchaseReque
     @Autowired
     private BootcoinPurchaseRequestRepository bootcoinPurchaseRequestRepository;
     @Autowired
+    private BootcoinsForSaleRepository bootcoinsForSaleRepository;
+    @Autowired
     private ClientRepository clientRepository;
     @Autowired
     private BankAccountRepository bankAccountRepository;
     @Autowired
     private MobileWalletRepository mobileWalletRepository;
+    @Autowired
+    private BootcoinRepository bootcoinRepository;
+    @Autowired
+    private ExchangeRateRepository exchangeRateRepository;
+
 
     @Override
     public Flux<BootcoinPurchaseRequest> findAll() {
@@ -53,24 +59,40 @@ public class BootcoinPurchaseRequestServiceImpl implements BootcoinPurchaseReque
                 .flatMap(bprd -> clientRepository.findClientByDni(bprd.getDocumentNumber())
                         .switchIfEmpty(Mono.error(new ResourceNotFoundException("Cliente", "DocumentNumber", bprd.getDocumentNumber())))
                         .flatMap(cl -> {
-                            bprd.setBalance(bprd.getAmount());
+                            bprd.setClient(cl);
                             return Mono.just(cl);
                         })
-                        .flatMap(cl -> bprd.MapperToBootcoinPurchaseRequest(cl))
+                        .flatMap(cl -> bootcoinsForSaleRepository.findById(bprd.getIdBootcoinsForSale()))
+                        .switchIfEmpty(Mono.error(new ResourceNotFoundException("bootcoins For Sale", "IdBootcoinsForSale", bprd.getIdBootcoinsForSale())))
+                        .flatMap(bcfs -> {
+                            bcfs.setBootcoin(null);
+                            bcfs.setAmount(null);
+                            bprd.setBootcoinsForSale(bcfs);
+                            return Mono.just(bcfs);
+                        })
+                        .flatMap(bcfs -> validateBalance(bcfs, bprd.getAmount()))
+                        .flatMap(cl -> bprd.MapperToBootcoinPurchaseRequest("pending"))
                         .flatMap(bpr -> validatesIfUouHaveABankAccount(bpr.getClient())
                                 .then(Mono.just(bpr)))
                         .flatMap(bootcoinPurchaseRequestRepository::save)
                 );
     }
 
+    public Mono<BootcoinsForSale> validateBalance(BootcoinsForSale bootcoinsForSale, Double amount) {
+        if (bootcoinsForSale.getBalance() < amount) {
+            return Mono.error(new ResourceNotFoundException("Bootcoin For Sale", "Balance", bootcoinsForSale.getBalance().toString()));
+        }
+        return Mono.just(bootcoinsForSale);
+    }
+
     public Mono<Boolean> validatesIfUouHaveABankAccount(Client client) {
         log.info("--validatesIfUouHaveABankAccount-------: ");
-        return bankAccountRepository.findByDocumentNumber(client.getDocumentNumber())
+        return bankAccountRepository.findCantByDocumentNumber(client.getDocumentNumber())
                 .flatMap(cnt -> {
                     if (cnt > 0) {
                         return Mono.just(true);
                     } else {
-                        return mobileWalletRepository.findByDocumentNumber(client.getDocumentNumber())
+                        return mobileWalletRepository.findByCantDocumentNumber(client.getDocumentNumber())
                                 .flatMap(cntmw -> {
                                     if (cntmw > 0) {
                                         return Mono.just(true);
@@ -89,10 +111,21 @@ public class BootcoinPurchaseRequestServiceImpl implements BootcoinPurchaseReque
                 .flatMap(bprd -> clientRepository.findClientByDni(bprd.getDocumentNumber())
                         .switchIfEmpty(Mono.error(new ResourceNotFoundException("Cliente", "DocumentNumber", bprd.getDocumentNumber())))
                         .flatMap(cl -> {
-                            bprd.setBalance(bprd.getAmount());
+                            bprd.setClient(cl);
                             return Mono.just(cl);
                         })
-                        .flatMap(cl -> bprd.MapperToBootcoinPurchaseRequest(cl))
+                        .flatMap(cl -> bootcoinsForSaleRepository.findById(bprd.getIdBootcoinsForSale()))
+                        .switchIfEmpty(Mono.error(new ResourceNotFoundException("bootcoins For Sale", "IdBootcoinsForSale", bprd.getIdBootcoinsForSale())))
+                        .flatMap(bcfs -> {
+                            String idBootcoin = bcfs.getBootcoin().getIdBootCoin();
+                            bcfs.setBootcoin(null);
+                            bcfs.getBootcoin().setIdBootCoin(idBootcoin);
+                            bcfs.setAmount(null);
+                            bprd.setBootcoinsForSale(bcfs);
+                            return Mono.just(bcfs);
+                        })
+                        .flatMap(bcfs -> validateBalance(bcfs, bprd.getAmount()))
+                        .flatMap(cl -> bprd.MapperToBootcoinPurchaseRequest("pending"))
                         .flatMap(bpr -> validatesIfUouHaveABankAccount(bpr.getClient())
                                 .then(Mono.just(bpr)))
                         .flatMap(bpr -> bootcoinPurchaseRequestRepository.findById(idbootcoinPurchaseRequest)
@@ -113,4 +146,68 @@ public class BootcoinPurchaseRequestServiceImpl implements BootcoinPurchaseReque
                 .flatMap(bootcoinPurchaseRequestRepository::delete);
     }
 
+    @Override
+    public Mono<BootcoinPurchaseRequest> acceptSale(String idBootcoinPurchaseRequest) {
+        log.info("----acceptSale-------idBootcoinPurchaseRequest : " + idBootcoinPurchaseRequest);
+        return Mono.just(idBootcoinPurchaseRequest)
+                .flatMap(b -> bootcoinPurchaseRequestRepository.findById(b)
+                        .switchIfEmpty(Mono.error(new ResourceNotFoundException("bootcoinPurchaseRequest", "idBootcoinPurchaseRequest", idBootcoinPurchaseRequest))))
+                .flatMap(bpr -> bootcoinRepository.findBootcoinByDocumentNumber(bpr.getBootcoinsForSale().getClient().getDocumentNumber())
+                        .switchIfEmpty(Mono.error(new ResourceNotFoundException("Bootcoin", "DocumentNumber", bpr.getBootcoinsForSale().getClient().getDocumentNumber())))
+                        .flatMap(bc -> {
+                            bpr.getBootcoinsForSale().setBootcoin(bc);
+                            return Mono.just(bpr);
+                        })
+                )
+                .flatMap(bpr -> validateBalanceBootcoin(bpr))
+                .flatMap(bpr -> validateBalanceAccount(bpr))
+                .flatMap(bpr -> {
+                    String idBootcoin = bpr.getBootcoinsForSale().getBootcoin().getIdBootCoin();
+                    bpr.getBootcoinsForSale().setBootcoin(null);
+                    bpr.getBootcoinsForSale().getBootcoin().setIdBootCoin(idBootcoin);
+                    bpr.getBootcoinsForSale().setAmount(null);
+                    bpr.setState("paid");
+                    return Mono.just(bpr);
+                })
+                .flatMap(bootcoinPurchaseRequestRepository::save);
+    }
+
+    public Mono<BootcoinPurchaseRequest> validateBalanceBootcoin(BootcoinPurchaseRequest bootcoinPurchaseRequest) {
+        if (bootcoinPurchaseRequest.getAmount() > bootcoinPurchaseRequest.getBootcoinsForSale().getBalance()) {
+            return Mono.error(new ResourceNotFoundException("BootcoinsForSale", "Balance", bootcoinPurchaseRequest.getBootcoinsForSale().getBalance().toString()));
+        } else {
+            return Mono.just(bootcoinPurchaseRequest);
+        }
+    }
+
+    public Mono<BootcoinPurchaseRequest> validateBalanceAccount(BootcoinPurchaseRequest bootcoinPurchaseRequest) {
+
+        if (bootcoinPurchaseRequest.getMethodOfPayment().equals("transfer-out")) {
+            return bankAccountRepository.findByDocumentNumber(bootcoinPurchaseRequest.getClient().getDocumentNumber())
+                    .flatMap(acc -> exchangeRateRepository.findByCurrencyType(acc.getCurrency())
+                            .flatMap(er -> {
+                                Double total = er.getPurchaseRate() * bootcoinPurchaseRequest.getAmount();
+                                if (total > acc.getBalance()) {
+                                    return Mono.error(new ResourceNotFoundException("Account Balance", "Balance", acc.getBalance().toString()));
+                                } else {
+                                    return Mono.just(bootcoinPurchaseRequest);
+                                }
+                            })
+                    );
+        } else if (bootcoinPurchaseRequest.getMethodOfPayment().equals("mobile-wallet")) {
+            return mobileWalletRepository.findByDocumentNumber(bootcoinPurchaseRequest.getClient().getDocumentNumber())
+                    .flatMap(acc -> exchangeRateRepository.findByCurrencyType(acc.getCurrency())
+                            .flatMap(er -> {
+                                Double total = er.getPurchaseRate() * bootcoinPurchaseRequest.getAmount();
+                                if (total > acc.getBalance()) {
+                                    return Mono.error(new ResourceNotFoundException("Account Balance", "Balance", acc.getBalance().toString()));
+                                } else {
+                                    return Mono.just(bootcoinPurchaseRequest);
+                                }
+                            })
+                    );
+        } else {
+            return Mono.error(new ResourceNotFoundException("Bootcoin Purchase Request", "MethodOfPayment", bootcoinPurchaseRequest.getMethodOfPayment()));
+        }
+    }
 }

@@ -116,4 +116,18 @@ public class BootcoinPurchaseRequestController {
     public Mono<ResponseEntity<Void>> deleteBootcoinPurchaseRequest(@PathVariable("idBootcoinPurchaseRequest") String idBootcoinPurchaseRequest) {
         return service.delete(idBootcoinPurchaseRequest).then(Mono.just(new ResponseEntity<Void>(HttpStatus.NO_CONTENT)));
     }
+
+    @PostMapping("/purchase/acceptSale/{idBootcoinPurchaseRequest}")
+    public Mono<ResponseEntity<Map<String, Object>>> acceptSaleBootcoinPurchaseRequest(@PathVariable("idBootcoinPurchaseRequest") String idBootcoinPurchaseRequest) {
+        Map<String, Object> request = new HashMap<>();
+        return Mono.just(idBootcoinPurchaseRequest).flatMap(id ->
+                service.acceptSale(id).map(c -> {
+                    request.put("Movimiento Bootcoin", c);
+                    request.put("mensaje", "Movimiento de Bootcoin guardado con exito");
+                    request.put("timestamp", new Date());
+                    return ResponseEntity.created(URI.create("/api/bootcoinpurchaserequest/".concat(c.getIdBootcoinPurchaseRequest())))
+                            .contentType(MediaType.APPLICATION_JSON).body(request);
+                })
+        );
+    }
 }

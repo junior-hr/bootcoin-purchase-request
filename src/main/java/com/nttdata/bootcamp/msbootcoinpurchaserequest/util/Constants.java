@@ -12,5 +12,6 @@ public class Constants {
     public static final String BOOTCOIN_CB = "bootcoinCB";
     public static final String CLIENT_CB = "clientCB";
     public static final String MOBILEWALLET_CB = "mobilewalletCB";
+    public static final String EXCHANGERATE_CB = "exchangerateCB";
 
 }
