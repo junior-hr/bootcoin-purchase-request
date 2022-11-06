@@ -25,11 +25,12 @@ import lombok.ToString;
 public class BootcoinsForSale {
 
     @Id
-    private String idBootcoinPurchaseRequest;
+    private String idBootcoinsForSale;
     private Client client;
     private Double amount;
     private LocalDateTime bootcoinPurchaseRequestDate;
     private Bootcoin bootcoin;
     private Double balance;
+    private String state;
 
 }

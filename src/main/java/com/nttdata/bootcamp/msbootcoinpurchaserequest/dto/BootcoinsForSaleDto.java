@@ -1,5 +1,6 @@
 package com.nttdata.bootcamp.msbootcoinpurchaserequest.dto;
 
+import com.nttdata.bootcamp.msbootcoinpurchaserequest.model.Bootcoin;
 import com.nttdata.bootcamp.msbootcoinpurchaserequest.model.BootcoinPurchaseRequest;
 import com.nttdata.bootcamp.msbootcoinpurchaserequest.model.BootcoinsForSale;
 import com.nttdata.bootcamp.msbootcoinpurchaserequest.model.Client;
@@ -25,6 +26,7 @@ import java.time.LocalDateTime;
 public class BootcoinsForSaleDto {
 
     @Id
+    private String idBootcoinsForSale;
     private String idBootcoinPurchaseRequest;
     private String documentNumber;
     private Client client;
@@ -32,17 +34,20 @@ public class BootcoinsForSaleDto {
     private LocalDateTime bootcoinPurchaseRequestDate;
     private Double balance;
 
-    public Mono<BootcoinsForSale> MapperToBootcoinPurchaseRequest(Client client) {
+    public Mono<BootcoinsForSale> MapperToBootcoinPurchaseRequest(Bootcoin bootcoin, String state) {
         LocalDateTime date = LocalDateTime.now();
-        log.info("ini validateBootcoinMovementLimit-------: LocalDateTime.now()" + LocalDateTime.now());
-        log.info("ini validateBootcoinMovementLimit-------date: " + date);
+        log.info("ini MapperToBootcoinPurchaseRequest-------date: " + date);
+        Client client = bootcoin.getClient();
+        bootcoin.setClient(null);
 
         BootcoinsForSale bootcoinsForSale = BootcoinsForSale.builder()
-                .idBootcoinPurchaseRequest(this.getIdBootcoinPurchaseRequest())
+                .idBootcoinsForSale(this.getIdBootcoinsForSale())
                 .amount(this.getAmount())
                 .balance(this.getBalance())
-                .bootcoinPurchaseRequestDate(date)
                 .client(client)
+                .bootcoin(bootcoin)
+                .bootcoinPurchaseRequestDate(date)
+                .state(state)
                 .build();
 
         return Mono.just(bootcoinsForSale);

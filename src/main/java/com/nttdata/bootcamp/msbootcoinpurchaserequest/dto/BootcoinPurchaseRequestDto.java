@@ -39,7 +39,6 @@ public class BootcoinPurchaseRequestDto {
         BootcoinPurchaseRequest movement = BootcoinPurchaseRequest.builder()
                 .idBootcoinPurchaseRequest(this.getIdBootcoinPurchaseRequest())
                 .amount(this.getAmount())
-                .balance(this.getBalance())
                 .bootcoinPurchaseRequestDate(date)
                 .client(client)
                 .build();

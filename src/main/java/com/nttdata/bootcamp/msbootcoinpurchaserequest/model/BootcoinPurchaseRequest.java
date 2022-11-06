@@ -26,10 +26,11 @@ public class BootcoinPurchaseRequest {
 
     @Id
     private String idBootcoinPurchaseRequest;
+    private String idBootcoinsForSale;
     private Client client;
     private Double amount;
     private LocalDateTime bootcoinPurchaseRequestDate;
-    private Bootcoin bootcoin;
-    private Double balance;
+    private Double state;
+    private BootcoinPurchaseRequest bootcoinPurchaseRequest;
 
 }

@@ -25,7 +25,7 @@ public class BootcoinRepository {
 
     @CircuitBreaker(name = Constants.BOOTCOIN_CB, fallbackMethod = "getDefaultBootcoinByDocumentNumber")
     public Mono<Bootcoin> findBootcoinByDocumentNumber(String documentNumber) {
-        log.info("Inicio----findBankAccountByAccountNumber-------documentNumber: " + documentNumber);
+        log.info("Inicio----findBootcoinByDocumentNumber-------documentNumber: " + documentNumber);
         WebClientConfig webconfig = new WebClientConfig();
         return webconfig.setUriData("http://" + propertyHostMsBootcoin + ":8096")
                 .flatMap(d -> webconfig.getWebclient().get().uri("/api/bootcoin/documentNumber/" + documentNumber).retrieve()

@@ -113,22 +113,4 @@ public class BootcoinPurchaseRequestServiceImpl implements BootcoinPurchaseReque
                 .flatMap(bootcoinPurchaseRequestRepository::delete);
     }
 
-
-    @Override
-    public Mono<BootcoinPurchaseRequest> saveBootcoinPurchaseRequest(BootcoinPurchaseRequestDto bootcoinPurchaseRequestDto) {
-        log.info("----saveBootcoinPurchaseRequest-------bootcoinPurchaseRequestDto : " + bootcoinPurchaseRequestDto.toString());
-        return Mono.just(bootcoinPurchaseRequestDto)
-                .flatMap(bprd -> clientRepository.findClientByDni(bprd.getDocumentNumber())
-                        .switchIfEmpty(Mono.error(new ResourceNotFoundException("Cliente", "DocumentNumber", bprd.getDocumentNumber())))
-                        .flatMap(cl -> {
-                            bprd.setBalance(bprd.getAmount());
-                            return Mono.just(cl);
-                        })
-                        .flatMap(cl -> bprd.MapperToBootcoinPurchaseRequest(cl))
-                        .flatMap(bpr -> validatesIfUouHaveABankAccount(bpr.getClient())
-                                .then(Mono.just(bpr)))
-                        .flatMap(bootcoinPurchaseRequestRepository::save)
-                );
-    }
-
 }

@@ -4,6 +4,7 @@ import com.nttdata.bootcamp.msbootcoinpurchaserequest.dto.BootcoinPurchaseReques
 import com.nttdata.bootcamp.msbootcoinpurchaserequest.dto.BootcoinsForSaleDto;
 import com.nttdata.bootcamp.msbootcoinpurchaserequest.exception.ResourceNotFoundException;
 import com.nttdata.bootcamp.msbootcoinpurchaserequest.infrastructure.*;
+import com.nttdata.bootcamp.msbootcoinpurchaserequest.model.Bootcoin;
 import com.nttdata.bootcamp.msbootcoinpurchaserequest.model.BootcoinPurchaseRequest;
 import com.nttdata.bootcamp.msbootcoinpurchaserequest.model.BootcoinsForSale;
 import com.nttdata.bootcamp.msbootcoinpurchaserequest.model.Client;
@@ -25,6 +26,9 @@ public class BootcoinsForSaleServiceImpl implements BootcoinsForSaleService {
     private BankAccountRepository bankAccountRepository;
     @Autowired
     private MobileWalletRepository mobileWalletRepository;
+
+    @Autowired
+    private BootcoinRepository bootcoinRepository;
 
     @Override
     public Flux<BootcoinsForSale> findAll() {
@@ -53,13 +57,23 @@ public class BootcoinsForSaleServiceImpl implements BootcoinsForSaleService {
                         .switchIfEmpty(Mono.error(new ResourceNotFoundException("Cliente", "DocumentNumber", bprd.getDocumentNumber())))
                         .flatMap(cl -> {
                             bprd.setBalance(bprd.getAmount());
+                            bprd.setClient(cl);
                             return Mono.just(cl);
                         })
-                        .flatMap(cl -> bprd.MapperToBootcoinPurchaseRequest(cl))
+                        .flatMap(bc -> bootcoinRepository.findBootcoinByDocumentNumber(bprd.getDocumentNumber()))
+                        .switchIfEmpty(Mono.error(new ResourceNotFoundException("Bootcoin", "DocumentNumber", bprd.getDocumentNumber())))
+                        .flatMap(bc -> validateBalance(bc, bprd.getAmount()))
+                        .flatMap(bcn -> bprd.MapperToBootcoinPurchaseRequest(bcn, "onSale"))
                         .flatMap(bpr -> validatesIfUouHaveABankAccount(bpr.getClient())
                                 .then(Mono.just(bpr)))
                         .flatMap(bootcoinsForSaleRepository::save)
                 );
+    }
+    public Mono<Bootcoin> validateBalance(Bootcoin bootcoin, Double amount) {
+        if(bootcoin.getBalance() < amount){
+            return Mono.error(new ResourceNotFoundException("Bootcoin", "Balance", bootcoin.getBalance().toString()));
+        }
+        return Mono.just(bootcoin);
     }
 
     public Mono<Boolean> validatesIfUouHaveABankAccount(Client client) {
@@ -89,15 +103,18 @@ public class BootcoinsForSaleServiceImpl implements BootcoinsForSaleService {
                         .switchIfEmpty(Mono.error(new ResourceNotFoundException("Cliente", "DocumentNumber", bprd.getDocumentNumber())))
                         .flatMap(cl -> {
                             bprd.setBalance(bprd.getAmount());
+                            bprd.setClient(cl);
                             return Mono.just(cl);
                         })
-                        .flatMap(cl -> bprd.MapperToBootcoinPurchaseRequest(cl))
+                        .flatMap(bc -> bootcoinRepository.findBootcoinByDocumentNumber(bprd.getDocumentNumber()))
+                        .switchIfEmpty(Mono.error(new ResourceNotFoundException("Bootcoin", "DocumentNumber", bprd.getDocumentNumber())))
+                        .flatMap(bcn -> bprd.MapperToBootcoinPurchaseRequest(bcn,"onSale"))
                         .flatMap(bpr -> validatesIfUouHaveABankAccount(bpr.getClient())
                                 .then(Mono.just(bpr)))
                         .flatMap(bpr -> bootcoinsForSaleRepository.findById(idBootcoinsForSale)
                                 .switchIfEmpty(Mono.error(new ResourceNotFoundException("bootcoin Purchase Request", "idbootcoinPurchaseRequest", idBootcoinsForSale)))
                                 .flatMap(x -> {
-                                    bpr.setIdBootcoinPurchaseRequest(x.getIdBootcoinPurchaseRequest());
+                                    bpr.setIdBootcoinsForSale(x.getIdBootcoinsForSale());
                                     return bootcoinsForSaleRepository.save(bpr);
                                 })
                         )

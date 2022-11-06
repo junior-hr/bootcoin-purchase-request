@@ -19,7 +19,7 @@ spring:
     name: service-bootcoin-movement
   data:
     mongodb:
-      uri: mongodb://localhost:27017/BootcoinPurchaseRequestDB
+      uri: mongodb://localhost:27017/BuyBootcoinDB
       auto-index-creation: true
   config:
     import: optional:configserver:http://ms-config-server:8888
