@@ -36,8 +36,8 @@ public class ExchangeRateRepository {
                 );
     }
 
-    public Mono<ExchangeRate> getDefaultfindByCurrencyType(String documentNumber, Exception e) {
-        log.info("Inicio----getDefaultfindByCurrencyType-------documentNumber: " + documentNumber);
+    public Mono<ExchangeRate> getDefaultfindByCurrencyType(String currencyType, Exception e) {
+        log.info("Inicio----getDefaultfindByCurrencyType-------currencyType: " + currencyType);
         return Mono.empty();
     }
 }

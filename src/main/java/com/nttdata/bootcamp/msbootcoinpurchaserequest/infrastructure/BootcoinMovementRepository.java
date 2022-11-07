@@ -27,23 +27,23 @@ public class BootcoinMovementRepository {
     ReactiveCircuitBreakerFactory reactiveCircuitBreakerFactory;
 
     @CircuitBreaker(name = Constants.BOOTCOINMOVEMENT_CB, fallbackMethod = "getDefaultupdateBootcoinMovement")
-    public Mono<Void> updateBootcoinMovement(BootcoinMovement bootcoinMovement) {
+    public Mono<BootcoinMovement> updateBootcoinMovement(BootcoinMovement bootcoinMovement) {
         log.info("--updateBootcoinMovement------- movement: " + bootcoinMovement);
         WebClientConfig webconfig = new WebClientConfig();
-        return webconfig.setUriData("http://" + propertyHostMsBootcoinMovement + ":8092")
-                .flatMap(d -> webconfig.getWebclient().put()
-                                .uri("/api/movement")
-                                //.accept(MediaType.APPLICATION_JSON)
-                                .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
-                                .body(Mono.just(bootcoinMovement), BootcoinMovement.class).retrieve()
-                                .onStatus(HttpStatus::is4xxClientError, clientResponse -> Mono.error(new Exception("Error 400")))
-                                .onStatus(HttpStatus::is5xxServerError, clientResponse -> Mono.error(new Exception("Error 500")))
-                                .bodyToMono(Void.class)
+        return webconfig.setUriData("http://" + propertyHostMsBootcoinMovement + ":8097")
+                .flatMap(d -> webconfig.getWebclient().post()
+                        .uri("/api/bootcoinmovements")
+                        .accept(MediaType.APPLICATION_JSON)
+                        .body(Mono.just(bootcoinMovement), BootcoinMovement.class)
+                        .retrieve()
+                        .onStatus(HttpStatus::is4xxClientError, clientResponse -> Mono.error(new Exception("Error 400")))
+                        .onStatus(HttpStatus::is5xxServerError, clientResponse -> Mono.error(new Exception("Error 500")))
+                        .bodyToMono(BootcoinMovement.class)
                 );
     }
 
-    public Mono<Void> getDefaultupdateBootcoinMovement(String idBankAccount, Double balance, Exception e) {
-        log.info("Inicio----getDefaultupdateBootcoinMovement-------idBankAccount: " + idBankAccount);
+    public Mono<BootcoinMovement> getDefaultupdateBootcoinMovement(BootcoinMovement bootcoinMovement, Exception e) {
+        log.info("Inicio----getDefaultupdateBootcoinMovement-------bootcoinMovement: " + bootcoinMovement);
         return Mono.empty();
     }
 }

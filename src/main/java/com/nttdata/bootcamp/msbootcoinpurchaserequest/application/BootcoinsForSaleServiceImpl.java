@@ -64,7 +64,7 @@ public class BootcoinsForSaleServiceImpl implements BootcoinsForSaleService {
                         .switchIfEmpty(Mono.error(new ResourceNotFoundException("Bootcoin", "DocumentNumber", bprd.getDocumentNumber())))
                         .flatMap(bc -> validateBalance(bc, bprd.getAmount()))
                         .flatMap(bcn -> bprd.MapperToBootcoinPurchaseRequest(bcn, "onSale"))
-                        .flatMap(bpr -> validatesIfUouHaveABankAccount(bpr.getClient())
+                        .flatMap(bpr -> validatesIfYouHaveABankAccount(bpr.getClient())
                                 .then(Mono.just(bpr)))
                         .flatMap(bootcoinsForSaleRepository::save)
                 );
@@ -76,14 +76,14 @@ public class BootcoinsForSaleServiceImpl implements BootcoinsForSaleService {
         return Mono.just(bootcoin);
     }
 
-    public Mono<Boolean> validatesIfUouHaveABankAccount(Client client) {
-        log.info("--validatesIfUouHaveABankAccount-------: ");
-        return bankAccountRepository.findByDocumentNumber(client.getDocumentNumber())
+    public Mono<Boolean> validatesIfYouHaveABankAccount(Client client) {
+        log.info("--validatesIfYouHaveABankAccount-------: ");
+        return bankAccountRepository.findCantByDocumentNumber(client.getDocumentNumber())
                 .flatMap(cnt -> {
                     if (cnt > 0) {
                         return Mono.just(true);
                     } else {
-                        return mobileWalletRepository.findByDocumentNumber(client.getDocumentNumber())
+                        return mobileWalletRepository.findByCantDocumentNumber(client.getDocumentNumber())
                                 .flatMap(cntmw -> {
                                     if (cntmw > 0) {
                                         return Mono.just(true);
@@ -109,7 +109,7 @@ public class BootcoinsForSaleServiceImpl implements BootcoinsForSaleService {
                         .flatMap(bc -> bootcoinRepository.findBootcoinByDocumentNumber(bprd.getDocumentNumber()))
                         .switchIfEmpty(Mono.error(new ResourceNotFoundException("Bootcoin", "DocumentNumber", bprd.getDocumentNumber())))
                         .flatMap(bcn -> bprd.MapperToBootcoinPurchaseRequest(bcn,"onSale"))
-                        .flatMap(bpr -> validatesIfUouHaveABankAccount(bpr.getClient())
+                        .flatMap(bpr -> validatesIfYouHaveABankAccount(bpr.getClient())
                                 .then(Mono.just(bpr)))
                         .flatMap(bpr -> bootcoinsForSaleRepository.findById(idBootcoinsForSale)
                                 .switchIfEmpty(Mono.error(new ResourceNotFoundException("bootcoin Purchase Request", "idbootcoinPurchaseRequest", idBootcoinsForSale)))

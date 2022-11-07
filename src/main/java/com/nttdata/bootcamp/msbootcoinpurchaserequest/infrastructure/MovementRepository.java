@@ -29,23 +29,24 @@ public class MovementRepository {
     ReactiveCircuitBreakerFactory reactiveCircuitBreakerFactory;
 
     @CircuitBreaker(name = Constants.MOVEMENT_CB, fallbackMethod = "getDefaultUpdateMovement")
-    public Mono<Void> updateMovement(MovementDto movement) {
-        log.info("--updateBalanceBankAccount------- movement: " + movement);
+    public Mono<MovementDto> updateMovement(MovementDto movement) {
+        log.info("--updateMovement------- propertyHostMsMovement: " + propertyHostMsMovement);
+        log.info("--updateMovement------- movement: " + movement);
         WebClientConfig webconfig = new WebClientConfig();
-        return webconfig.setUriData("http://" + propertyHostMsMovement + ":8085")
-                .flatMap(d -> webconfig.getWebclient().put()
-                                .uri("/api/movement")
-                                //.accept(MediaType.APPLICATION_JSON)
-                                .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
-                                .body(Mono.just(movement), MovementDto.class).retrieve()
-                                .onStatus(HttpStatus::is4xxClientError, clientResponse -> Mono.error(new Exception("Error 400")))
-                                .onStatus(HttpStatus::is5xxServerError, clientResponse -> Mono.error(new Exception("Error 500")))
-                                .bodyToMono(Void.class)
+        return webconfig.setUriData("http://" + propertyHostMsMovement + ":8092")
+                .flatMap(d -> webconfig.getWebclient().post()
+                        .uri("/api/movements")
+                        .accept(MediaType.APPLICATION_JSON)
+                        .body(Mono.just(movement), MovementDto.class)
+                        .retrieve()
+                        .onStatus(HttpStatus::is4xxClientError, clientResponse -> Mono.error(new Exception("Error 400")))
+                        .onStatus(HttpStatus::is5xxServerError, clientResponse -> Mono.error(new Exception("Error 500")))
+                        .bodyToMono(MovementDto.class)
                 );
     }
 
-    public Mono<Void> getDefaultUpdateMovement(String idBankAccount, Double balance, Exception e) {
-        log.info("Inicio----getDefaultUpdateMovement-------idBankAccount: " + idBankAccount);
+    public Mono<MovementDto> getDefaultUpdateMovement(MovementDto movement, Exception e) {
+        log.info("Inicio----getDefaultUpdateMovement-------movement: " + movement);
         return Mono.empty();
     }
 }

@@ -14,9 +14,10 @@ local:
       ms-bootcoin: localhost
       ms-movement: localhost
       ms-bootcoin-movement: localhost
+      ms-exchange-rate: localhost
 spring:
   application:
-    name: service-bootcoin-movement
+    name: service-bootcoin-movement-purchase-request
   data:
     mongodb:
       uri: mongodb://localhost:27017/BuyBootcoinDB
@@ -78,7 +79,7 @@ resilience4j:
         minimumNumberOfCalls: 4
         slidingWindowType: COUNT_BASED
         slidingWindowSize: 8
-        waitDurationInOpenState: 2s
+        waitDurationInOpenState: 20s
         permittedNumberOfCallsInHalfOpenState: 3
       bootcoinmovementCB:
         failureRateThreshold: 50

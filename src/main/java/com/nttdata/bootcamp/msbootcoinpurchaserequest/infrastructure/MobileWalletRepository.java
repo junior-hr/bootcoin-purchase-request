@@ -40,7 +40,7 @@ public class MobileWalletRepository {
         log.info("Inicio----findByDocumentNumber-------documentNumber: " + documentNumber);
         WebClientConfig webconfig = new WebClientConfig();
         return webconfig.setUriData("http://" + propertyHostMsMobileWallet + ":8090")
-                .flatMap(d -> webconfig.getWebclient().get().uri("/api/mobilewallet/documentNumber/" + documentNumber).retrieve()
+                .flatMap(d -> webconfig.getWebclient().get().uri("/api/mobilewallet/first/documentNumber/" + documentNumber).retrieve()
                         .onStatus(HttpStatus::is4xxClientError, clientResponse -> Mono.error(new Exception("Error 400")))
                         .onStatus(HttpStatus::is5xxServerError, clientResponse -> Mono.error(new Exception("Error 500")))
                         .bodyToMono(MobileWallet.class)

@@ -26,9 +26,10 @@ public class BankAccountRepository {
     @CircuitBreaker(name = Constants.BANKACCOUNT_CB, fallbackMethod = "getDefaultByDocumentNumber")
     public Mono<BankAccount> findByDocumentNumber(String documentNumber) {
         log.info("Inicio----findByDocumentNumber-------documentNumber: " + documentNumber);
+        log.info("Inicio----findByDocumentNumber-------propertyHostMsBankAccount: " + propertyHostMsBankAccount);
         WebClientConfig webconfig = new WebClientConfig();
         return webconfig.setUriData("http://" + propertyHostMsBankAccount + ":8085")
-                .flatMap(d -> webconfig.getWebclient().get().uri("/api/bankaccounts/documentNumber/" + documentNumber).retrieve()
+                .flatMap(d -> webconfig.getWebclient().get().uri("/api/bankaccounts/first/documentNumber/" + documentNumber).retrieve()
                                 .onStatus(HttpStatus::is4xxClientError, clientResponse -> Mono.error(new Exception("Error 400")))
                                 .onStatus(HttpStatus::is5xxServerError, clientResponse -> Mono.error(new Exception("Error 500")))
                                 .bodyToMono(BankAccount.class)
@@ -36,23 +37,23 @@ public class BankAccountRepository {
     }
 
     @CircuitBreaker(name = Constants.BANKACCOUNT_CB, fallbackMethod = "getDefaultCantByDocumentNumber")
-    public Mono<Integer> findCantByDocumentNumber(String documentNumber) {
+    public Mono<Long> findCantByDocumentNumber(String documentNumber) {
         log.info("Inicio----findBankAccountByDocumentNumber-------documentNumber: " + documentNumber);
         WebClientConfig webconfig = new WebClientConfig();
         return webconfig.setUriData("http://" + propertyHostMsBankAccount + ":8085")
                 .flatMap(d -> webconfig.getWebclient().get().uri("/api/bankaccounts/cant/documentNumber/" + documentNumber).retrieve()
                         .onStatus(HttpStatus::is4xxClientError, clientResponse -> Mono.error(new Exception("Error 400")))
                         .onStatus(HttpStatus::is5xxServerError, clientResponse -> Mono.error(new Exception("Error 500")))
-                        .bodyToMono(Integer.class)
+                        .bodyToMono(Long.class)
                 );
     }
 
-    public Mono<Integer> getDefaultByDocumentNumber(String documentNumber, Exception e) {
+    public Mono<BankAccount> getDefaultByDocumentNumber(String documentNumber, Exception e) {
         log.info("Inicio----getDefaultByDocumentNumber-------documentNumber: " + documentNumber);
         return Mono.empty();
     }
 
-    public Mono<Integer> getDefaultCantByDocumentNumber(String documentNumber, Exception e) {
+    public Mono<Long> getDefaultCantByDocumentNumber(String documentNumber, Exception e) {
         log.info("Inicio----getDefaultCantByDocumentNumber-------documentNumber: " + documentNumber);
         return Mono.empty();
     }
