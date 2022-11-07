@@ -1,7 +1,6 @@
 package com.nttdata.bootcamp.msbootcoinpurchaserequest.model;
 
 import org.springframework.data.annotation.Id;
-import javax.validation.constraints.NotEmpty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;

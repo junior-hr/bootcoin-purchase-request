@@ -1,7 +1,7 @@
 package com.nttdata.bootcamp.msbootcoinpurchaserequest.model;
 
 import org.springframework.data.annotation.Id;
-import com.fasterxml.jackson.annotation.JsonInclude;
+import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -10,21 +10,25 @@ import lombok.Setter;
 import lombok.ToString;
 
 /**
- * Class MobileWallet.
- * MobileWallet microservice class MobileWallet.
+ * Class BootcoinMovement.
+ * BootcoinMovement microservice class BootcoinMovement.
  */
 @Getter
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-@ToString
 @Builder
-@JsonInclude(JsonInclude.Include.NON_NULL)
-public class MobileWallet {
+@ToString
+public class BootcoinMovement {
 
     @Id
-    private String idMobileWallet;
-    private Client client;
+    private String idBootcoinMovement;
+    private String documentNumber;
+    private String cellphone;
+    private String bootcoinMovementType;
+    private Double amount;
     private Double balance;
     private String currency;
+    private String documentNumberForTransfer;
+
 }

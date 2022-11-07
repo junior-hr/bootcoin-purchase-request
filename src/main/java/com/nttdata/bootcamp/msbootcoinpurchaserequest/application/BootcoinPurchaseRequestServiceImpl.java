@@ -1,12 +1,11 @@
 package com.nttdata.bootcamp.msbootcoinpurchaserequest.application;
 
 import com.nttdata.bootcamp.msbootcoinpurchaserequest.dto.BootcoinPurchaseRequestDto;
+import com.nttdata.bootcamp.msbootcoinpurchaserequest.dto.MovementDto;
 import com.nttdata.bootcamp.msbootcoinpurchaserequest.exception.ResourceNotFoundException;
 import com.nttdata.bootcamp.msbootcoinpurchaserequest.infrastructure.*;
-import com.nttdata.bootcamp.msbootcoinpurchaserequest.model.Bootcoin;
-import com.nttdata.bootcamp.msbootcoinpurchaserequest.model.BootcoinPurchaseRequest;
-import com.nttdata.bootcamp.msbootcoinpurchaserequest.model.BootcoinsForSale;
-import com.nttdata.bootcamp.msbootcoinpurchaserequest.model.Client;
+import com.nttdata.bootcamp.msbootcoinpurchaserequest.model.*;
+import lombok.Builder;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -31,6 +30,11 @@ public class BootcoinPurchaseRequestServiceImpl implements BootcoinPurchaseReque
     private BootcoinRepository bootcoinRepository;
     @Autowired
     private ExchangeRateRepository exchangeRateRepository;
+
+    @Autowired
+    private MovementRepository movementRepository;
+    @Autowired
+    private BootcoinMovementRepository bootcoinMovementRepository;
 
 
     @Override
@@ -160,7 +164,7 @@ public class BootcoinPurchaseRequestServiceImpl implements BootcoinPurchaseReque
                         })
                 )
                 .flatMap(bpr -> validateBalanceBootcoin(bpr))
-                .flatMap(bpr -> validateBalanceAccount(bpr))
+                .flatMap(bpr -> validateBalanceAccountAndBootcoinForTransfer(bpr))
                 .flatMap(bpr -> {
                     String idBootcoin = bpr.getBootcoinsForSale().getBootcoin().getIdBootCoin();
                     bpr.getBootcoinsForSale().setBootcoin(null);
@@ -180,34 +184,84 @@ public class BootcoinPurchaseRequestServiceImpl implements BootcoinPurchaseReque
         }
     }
 
-    public Mono<BootcoinPurchaseRequest> validateBalanceAccount(BootcoinPurchaseRequest bootcoinPurchaseRequest) {
+    public Mono<BootcoinPurchaseRequest> validateBalanceAccountAndBootcoinForTransfer(BootcoinPurchaseRequest bootcoinPurchaseRequest) {
 
-        if (bootcoinPurchaseRequest.getMethodOfPayment().equals("transfer-out")) {
-            return bankAccountRepository.findByDocumentNumber(bootcoinPurchaseRequest.getClient().getDocumentNumber())
-                    .flatMap(acc -> exchangeRateRepository.findByCurrencyType(acc.getCurrency())
-                            .flatMap(er -> {
-                                Double total = er.getPurchaseRate() * bootcoinPurchaseRequest.getAmount();
-                                if (total > acc.getBalance()) {
-                                    return Mono.error(new ResourceNotFoundException("Account Balance", "Balance", acc.getBalance().toString()));
-                                } else {
-                                    return Mono.just(bootcoinPurchaseRequest);
-                                }
-                            })
-                    );
-        } else if (bootcoinPurchaseRequest.getMethodOfPayment().equals("mobile-wallet")) {
-            return mobileWalletRepository.findByDocumentNumber(bootcoinPurchaseRequest.getClient().getDocumentNumber())
-                    .flatMap(acc -> exchangeRateRepository.findByCurrencyType(acc.getCurrency())
-                            .flatMap(er -> {
-                                Double total = er.getPurchaseRate() * bootcoinPurchaseRequest.getAmount();
-                                if (total > acc.getBalance()) {
-                                    return Mono.error(new ResourceNotFoundException("Account Balance", "Balance", acc.getBalance().toString()));
-                                } else {
-                                    return Mono.just(bootcoinPurchaseRequest);
-                                }
-                            })
-                    );
-        } else {
-            return Mono.error(new ResourceNotFoundException("Bootcoin Purchase Request", "MethodOfPayment", bootcoinPurchaseRequest.getMethodOfPayment()));
-        }
+        return Mono.just(bootcoinPurchaseRequest)
+                .flatMap(bpr -> clientRepository.findClientByDni(bpr.getClient().getDocumentNumber()))
+                .switchIfEmpty(Mono.error(new ResourceNotFoundException("Cliente", "DocumentNumber", bootcoinPurchaseRequest.getClient().getDocumentNumber())))
+                .flatMap(cl -> {
+                    if (bootcoinPurchaseRequest.getMethodOfPayment().equals("transfer-out")) {
+                        return bankAccountRepository.findByDocumentNumber(bootcoinPurchaseRequest.getClient().getDocumentNumber())
+                                .flatMap(acc -> exchangeRateRepository.findByCurrencyType(acc.getCurrency())
+                                        .flatMap(er -> {
+                                            Double total = er.getPurchaseRate() * bootcoinPurchaseRequest.getAmount();
+                                            if (total > acc.getBalance()) {
+                                                return Mono.error(new ResourceNotFoundException("Account Balance", "Balance", acc.getBalance().toString()));
+                                            } else {
+                                                return bankAccountRepository.findByDocumentNumber(bootcoinPurchaseRequest.getClient().getDocumentNumber())
+                                                        .flatMap(acc2 -> {
+                                                            MovementDto movement = MovementDto.builder()
+                                                                    .accountNumber(acc.getAccountNumber())
+                                                                    .movementType("output-transfer")
+                                                                    .amount(total)
+                                                                    .currency(acc.getCurrency())
+                                                                    .accountNumberForTransfer(acc2.getAccountNumber())
+                                                                    .build();
+                                                            return movementRepository.updateMovement(movement)
+                                                                    .flatMap(m -> {
+
+                                                                        BootcoinMovement bootcoinMovement = BootcoinMovement.builder()
+                                                                                .documentNumber(acc.getAccountNumber())
+                                                                                .bootcoinMovementType("transfer-out")
+                                                                                .amount(total)
+                                                                                .currency(acc.getCurrency())
+                                                                                .documentNumberForTransfer(acc2.getAccountNumber())
+                                                                                .build();
+                                                                        return bootcoinMovementRepository.updateBootcoinMovement(bootcoinMovement);
+                                                                    })
+                                                                    .then(Mono.just(bootcoinPurchaseRequest));
+                                                        });
+                                            }
+                                        })
+                                );
+                    } else if (bootcoinPurchaseRequest.getMethodOfPayment().equals("mobile-wallet")) {
+                        return mobileWalletRepository.findByDocumentNumber(bootcoinPurchaseRequest.getClient().getDocumentNumber())
+                                .flatMap(acc -> exchangeRateRepository.findByCurrencyType(acc.getCurrency())
+                                        .flatMap(er -> {
+                                            Double total = er.getPurchaseRate() * bootcoinPurchaseRequest.getAmount();
+                                            if (total > acc.getBalance()) {
+                                                return Mono.error(new ResourceNotFoundException("Account Balance", "Balance", acc.getBalance().toString()));
+                                            } else {
+                                                return bankAccountRepository.findByDocumentNumber(bootcoinPurchaseRequest.getClient().getDocumentNumber())
+                                                        .flatMap(acc2 -> {
+                                                            MovementDto movement = MovementDto.builder()
+                                                                    .cellphone(cl.getCellphone().toString())
+                                                                    .movementType("output-transfer")
+                                                                    .amount(total)
+                                                                    .currency(acc.getCurrency())
+                                                                    .accountNumberForTransfer(acc2.getAccountNumber())
+                                                                    .build();
+
+                                                            return movementRepository.updateMovement(movement)
+                                                                    .flatMap(m -> {
+                                                                        BootcoinMovement bootcoinMovement = BootcoinMovement.builder()
+                                                                                .cellphone(cl.getCellphone().toString())
+                                                                                .bootcoinMovementType("transfer-out")
+                                                                                .amount(total)
+                                                                                .currency(acc.getCurrency())
+                                                                                .documentNumberForTransfer(acc2.getAccountNumber())
+                                                                                .build();
+                                                                        return bootcoinMovementRepository.updateBootcoinMovement(bootcoinMovement);
+                                                                    })
+                                                                    .then(Mono.just(bootcoinPurchaseRequest));
+                                                        });
+                                            }
+                                        })
+                                );
+                    } else {
+                        return Mono.error(new ResourceNotFoundException("Bootcoin Purchase Request", "MethodOfPayment", bootcoinPurchaseRequest.getMethodOfPayment()));
+                    }
+                });
     }
+
 }
